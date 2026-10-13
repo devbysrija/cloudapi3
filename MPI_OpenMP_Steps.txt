@@ -1,0 +1,222 @@
+IMPLEMENTATION OF PARALLEL PROCESSING USING MPI AND OPENMP
+
+PART A: MPI
+
+1. Update Ubuntu:
+sudo apt update
+
+2. Install Python:
+sudo apt install python3
+
+3. Install MPI:
+sudo apt install -y mpich
+
+4. Install pip and mpi4py:
+sudo apt install python3-pip
+pip install mpi4py
+
+5. Create the MPI program:
+gedit mpi_example.py
+
+Paste this code:
+
+from mpi4py import MPI
+
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
+
+print("Hello from process", rank, "of", size)
+
+Save and close the file.
+
+6. Run the MPI program:
+mpiexec -n 4 python3 mpi_example.py
+
+PART B: OPENMP
+
+1. Install the required compiler:
+sudo apt update
+sudo apt install build-essential
+
+2. Create the Hello World program:
+gedit hello_omp.cpp
+
+Paste this code:
+
+#include <iostream>
+#include <omp.h>
+using namespace std;
+
+int main() {
+    #pragma omp parallel
+    {
+        cout << "Hello from thread "
+             << omp_get_thread_num() << endl;
+    }
+    return 0;
+}
+
+Save and close the file.
+
+3. Compile and run:
+g++ -fopenmp hello_omp.cpp -o hello
+./hello
+
+PART C: OPENMP SAMPLE PROGRAMS
+
+SAMPLE 1: LOOP PARALLELISM WITH REDUCTION
+
+Create the file:
+gedit loop_parallel.cpp
+
+Code:
+
+#include <iostream>
+using namespace std;
+
+int main() {
+    int sum = 0;
+
+    #pragma omp parallel for reduction(+:sum)
+    for (int i = 1; i <= 1000; i++)
+        sum += i;
+
+    cout << "Parallel sum = " << sum << endl;
+    return 0;
+}
+
+Compile and run:
+g++ -fopenmp loop_parallel.cpp -o loop
+./loop
+
+Output:
+Parallel sum = 500500
+
+
+SAMPLE 2: PRIVATE
+
+Create the file:
+gedit private.cpp
+
+Code:
+
+#include <iostream>
+#include <omp.h>
+using namespace std;
+
+int main() {
+    int x = 10;
+
+    #pragma omp parallel private(x)
+    {
+        x = omp_get_thread_num();
+        cout << "Thread " << omp_get_thread_num()
+             << " x = " << x << endl;
+    }
+
+    cout << "Outside x = " << x << endl;
+    return 0;
+}
+
+Compile and run:
+g++ -fopenmp private.cpp -o private
+./private
+
+
+SAMPLE 3: FIRSTPRIVATE
+
+Create the file:
+gedit first_private.cpp
+
+Code:
+
+#include <iostream>
+#include <omp.h>
+using namespace std;
+
+int main() {
+    int x = 10;
+
+    #pragma omp parallel firstprivate(x)
+    {
+        cout << "Thread " << omp_get_thread_num()
+             << " x = " << x << endl;
+    }
+
+    return 0;
+}
+
+Compile and run:
+g++ -fopenmp first_private.cpp -o first
+./first
+
+
+SAMPLE 4: LASTPRIVATE
+
+Create the file:
+gedit last_private.cpp
+
+Code:
+
+#include <iostream>
+#include <omp.h>
+using namespace std;
+
+int main() {
+    int x = 0;
+
+    #pragma omp parallel for lastprivate(x)
+    for (int i = 1; i <= 5; i++)
+        x = i;
+
+    cout << "Final x = " << x << endl;
+    return 0;
+}
+
+Compile and run:
+g++ -fopenmp last_private.cpp -o last
+./last
+
+Output:
+Final x = 5
+
+
+SAMPLE 5: CRITICAL SECTION
+
+Create the file:
+gedit critical.cpp
+
+Code:
+
+#include <iostream>
+using namespace std;
+
+int main() {
+    int sum = 0;
+
+    #pragma omp parallel for
+    for (int i = 1; i <= 1000; i++) {
+        #pragma omp critical
+        {
+            sum += i;
+        }
+    }
+
+    cout << "Total sum = " << sum << endl;
+    return 0;
+}
+
+Compile and run:
+g++ -fopenmp critical.cpp -o critical
+./critical
+
+Output:
+Total sum = 500500
+
+
+RESULT:
+Thus, parallel processing using MPI and OpenMP was implemented successfully.
+
+NOTE:
+MPI and OpenMPI are alternative implementations. This program uses MPICH. If mpi4py installation fails because of an externally managed environment, use a Python virtual environment.
