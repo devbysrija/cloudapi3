@@ -62,6 +62,7 @@ Save and close the file.
 3. Compile and run:
 g++ -fopenmp hello_omp.cpp -o hello
 ./hello
+OMP_NUM_THREADS=4 ./hello
 
 PART C: OPENMP SAMPLE PROGRAMS
 

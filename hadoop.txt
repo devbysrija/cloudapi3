@@ -57,6 +57,8 @@ Download Hadoop 3.4.1:
 wget https://archive.apache.org/dist/hadoop/common/hadoop-3.4.1/hadoop-3.4.1.tar.gz
 
 
+ wget -c https://dlcdn.apache.org/hadoop/common/hadoop-3.3.6/hadoop-3.3.6.tar.gz
+
 Wait for the download to complete.
 Step 4. Extract the downloaded archive
 Run:
@@ -78,8 +80,7 @@ share
 
 
 If the folder already exists and contains these files, you can skip the download and extraction steps.
-Part 3: Configure Hadoop
-Step 5. Set environment variables
+
 Open your Bash configuration file:
 nano ~/.bashrc
 
@@ -90,6 +91,10 @@ export HADOOP_HOME=/home/osboxes/Downloads/hadoop-3.4.1
 export HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop
 export PATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
 
+export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+export HADOOP_HOME=$HOME/hadoop-3.3.6
+export HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop
+export PATH=$PATH:$HADOOP_HOME/bin:$HADOOP_HOME/sbin
 
 Save the file with Ctrl + O, press Enter, then Ctrl + X.
 Load the settings:
@@ -109,11 +114,11 @@ Check Hadoop:
 hadoop version
 
 
-If your Java installation path differs, use the correct path found in Step 2.
-Step 6. Configure HDFS
-Hadoop uses XML files for its configuration. We will set up a single-node environment.
+sudo apt install openssh-server openssh-client -y
+sudo service ssh start
 Configure core-site.xml:
 nano $HADOOP_HOME/etc/hadoop/core-site.xml
+
 
 
 Replace its contents with:
@@ -177,6 +182,8 @@ Enter:
 
 
 Save and exit.
+mkdir -p ~/hadoop/data/namenode
+mkdir -p ~/hadoop/data/datanode
 Step 8. Enable passwordless SSH
 Hadoop's start scripts use SSH to start services. Configure local SSH:
 sudo service ssh start
@@ -192,6 +199,7 @@ cat ~/.ssh/id_rsa.pub >> ~/.ssh/authorized_keys
 
 
 Set the correct permission:
+chmod 700 ~/.ssh
 chmod 600 ~/.ssh/authorized_keys
 
 
@@ -350,7 +358,7 @@ Part 6: Compile the Java program and create a JAR
 Step 14. Create a folder for compiled classes
 cd ~/wordcount
 mkdir -p classes
-
+ls -la ~/wordcount
 
 Step 15. Compile the program
 Run:
@@ -403,7 +411,8 @@ hdfs dfs -mkdir -p /user/osboxes/input
 Upload the file:
 hdfs dfs -put ~/wordcount/input.txt /user/osboxes/input/
 
-
+~/hadoop/bin/hdfs dfsadmin -safemode get
+~/hadoop/bin/hdfs dfsadmin -safemode leave
 Check the upload:
 hdfs dfs -ls /user/osboxes/input
 
@@ -451,57 +460,29 @@ world   1
 
 
 
+import java.io.*;
+import java.util.*;
 
-
-
-import java.io.IOException;
-import java.util.StringTokenizer;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.io.*;
-import org.apache.hadoop.mapreduce.*;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
-
-public class WordCounter {
-
-    public static class MapperClass
-            extends Mapper<Object, Text, Text, IntWritable> {
-
-        public void map(Object key, Text value, Context c)
-                throws IOException, InterruptedException {
-            StringTokenizer st = new StringTokenizer(value.toString());
-            while (st.hasMoreTokens())
-                c.write(new Text(st.nextToken()), new IntWritable(1));
-        }
-    }
-
-    public static class ReducerClass
-            extends Reducer<Text, IntWritable, Text, IntWritable> {
-
-        public void reduce(Text key, Iterable<IntWritable> values,
-                           Context c) throws IOException, InterruptedException {
-            int sum = 0;
-            for (IntWritable v : values)
-                sum += v.get();
-            c.write(key, new IntWritable(sum));
-        }
-    }
-
+public class WordCount {
     public static void main(String[] args) throws Exception {
-        Job job = Job.getInstance(new Configuration(), "Word Count");
-        job.setJarByClass(WordCounter.class);
-        job.setMapperClass(MapperClass.class);
-        job.setReducerClass(ReducerClass.class);
-        job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(IntWritable.class);
-        FileInputFormat.addInputPath(job, new Path(args[0]));
-        FileOutputFormat.setOutputPath(job, new Path(args[1]));
-        System.exit(job.waitForCompletion(true) ? 0 : 1);
+        BufferedReader br = new BufferedReader(
+            new FileReader("input.txt"));
+
+        HashMap<String, Integer> counts = new HashMap<>();
+        String line;
+
+        while ((line = br.readLine()) != null) {
+            String[] words = line.split("\\s+");
+
+            for (String word : words) {
+                counts.put(word, counts.getOrDefault(word, 0) + 1);
+            }
+        }
+
+        br.close();
+
+        for (String word : counts.keySet()) {
+            System.out.println(word + " " + counts.get(word));
+        }
     }
 }
-
-hadoop com.sun.tools.javac.Main WordCounter.java
-jar cf WordCounter.jar WordCounter*.class
-hadoop jar WordCounter.jar WordCounter input output
-hadoop fs -cat output/part-r-00000
